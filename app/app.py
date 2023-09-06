@@ -1,28 +1,45 @@
 import os
 import signal
-import subprocess
 import sys
 from types import FrameType
 
-from flask import Flask, send_file
+from flask import Flask, request, send_file
 from yt_dlp import YoutubeDL
 
 
 app = Flask(__name__)
+AUTHENTICATION_PASSWORD = os.environ.get("AUTHENTICATION_PASSWORD")
+
+
+@app.before_request
+def authenticate():
+    password = request.args.get("pw")
+    # Local runs do not need auth
+    if AUTHENTICATION_PASSWORD and password != AUTHENTICATION_PASSWORD:
+        return "Unauthorized", 401
 
 
 @app.get("/")
 def main() -> tuple:
-    return "Hello, world!", 200
+    # print(request.args)
+    video_id = request.args.get("id")
+    if not video_id:
+        return "Please specify `id`", 400
+    return download(video_id)
+
+    # return "Hello, world!", 200
 
 
 @app.get("/test")
 def test():
+    return download('BaW_jenozKc')
+
+
+def download(video_id: str):
     # Download video
-    URLS = ['https://www.youtube.com/watch?v=BaW_jenozKc']
+    URLS = [f'https://www.youtube.com/watch?v={video_id}']
     with YoutubeDL() as ydl:
         ydl.download(URLS)
-    # subprocess.run(["./youtube-dl", "https://www.youtube.com/watch?v=Rq83QosbjZ0"])
 
     # Locate downloaded file
     filenames = os.listdir(".")
@@ -32,7 +49,7 @@ def test():
     video = video[0]
 
     print("video:", video)
-    return send_file(video)
+    return send_file(video, as_attachment=True)
 
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:

@@ -5,6 +5,10 @@ FROM python:3.10-slim
 # Allow statements and log messages to immediately appear in the logs
 ENV PYTHONUNBUFFERED True
 
+# Password
+ARG AUTHENTICATION_PASSWORD
+ENV AUTHENTICATION_PASSWORD=${AUTHENTICATION_PASSWORD:-woodpecker2023}
+
 WORKDIR /app
 COPY . .
 # Install dependencies
