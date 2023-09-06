@@ -3,11 +3,12 @@ Based on: https://github.com/GoogleCloudPlatform/cloud-run-microservice-template
 """
 
 import os
+import re
 import signal
 import sys
 from types import FrameType
 
-from flask import Flask, request, send_file
+from flask import Flask, render_template, request, send_file
 from yt_dlp import YoutubeDL
 
 
@@ -22,9 +23,17 @@ def authenticate():
     if AUTHENTICATION_PASSWORD and password != AUTHENTICATION_PASSWORD:
         return "Unauthorized", 401
 
-@app.get("/")
+@app.route("/", methods=["GET", "POST"])
 def main() -> tuple:
-    return "Hello, world!", 200
+    if request.method == "GET":
+        return render_template("index.html")
+
+    elif request.method == "POST":
+        url = get_id_from_url(request.form["video_url"])
+        if request.form["result_select"] == "video":
+            return download_video(url)
+        elif request.form["result_select"] == "gif":
+            return download_gif(url)
 
 
 @app.get("/video")
@@ -57,6 +66,19 @@ def robots():
     return "User-agent: *\nDisallow: /", 200
 
 
+def get_id_from_url(video_url: str) -> str:
+    result = None
+    if "/watch" in video_url:
+        result = re.search(r"(?<=v=).+?(?=\b)", video_url)
+    elif "/shorts" in video_url:
+        result = re.search(r"(?<=/shorts/).+?(?=\b)", video_url)
+    elif "youtu.be/" in video_url:
+        result = re.search(r"(?<=youtu\.be/).+?(?=\b)", video_url)
+    if result:
+        return result[0]
+    return f"Invalid URL: {video_url}", 400
+
+
 def download_video(video_id: str):
     # Download video
     # The request below is equivalent to:
@@ -71,11 +93,6 @@ def download_video(video_id: str):
         info = ydl.extract_info(url)
 
     # Locate downloaded file
-    # filenames = os.listdir(".")
-    # video = [filename for filename in filenames if filename.endswith(".mp4")]
-    # if not video:
-    #     raise FileNotFoundError("An error has occurred")
-    # video = video[0]
     video = info['requested_downloads'][0]['filepath']
     print("video:", video)
 
@@ -104,11 +121,6 @@ def download_gif(video_id: str):
         info = ydl.extract_info(url)
 
     # Locate downloaded file
-    # filenames = os.listdir(".")
-    # gif = [filename for filename in filenames if filename.endswith(".gif")]
-    # if not gif:
-    #     raise FileNotFoundError("An error has occurred")
-    # gif = gif[0]
     gif = info['requested_downloads'][0]['filepath']
     print("video:", gif)
 
