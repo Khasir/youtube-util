@@ -7,6 +7,7 @@ ENV PYTHONUNBUFFERED True
 
 WORKDIR /app
 COPY . .
+# Install dependencies
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Run the web service on container startup. Here we use the gunicorn
