@@ -32,7 +32,16 @@ def main() -> tuple:
 
 @app.get("/test")
 def test():
+    # Test video
     return download('BaW_jenozKc')
+
+@app.get("/robots.txt")
+def robots():
+    """
+    Disallow all robots.
+    """
+    return """User-agent: *
+Disallow: /""", 200
 
 
 def download(video_id: str):
