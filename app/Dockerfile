@@ -12,7 +12,9 @@ ENV AUTHENTICATION_PASSWORD=${AUTHENTICATION_PASSWORD:-woodpecker2023}
 WORKDIR /app
 COPY . .
 # Install dependencies
-RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt; \
+    apt-get update && apt-get install -y --no-install-recommends ffmpeg; \
+    rm -rf /var/lib/apt/lists/*
 
 # Run the web service on container startup. Here we use the gunicorn
 # webserver, with one worker process and 4 threads.
