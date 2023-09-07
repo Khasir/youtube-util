@@ -14,6 +14,17 @@ from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
 AUTHENTICATION_PASSWORD = os.environ.get("AUTHENTICATION_PASSWORD")
+# As per https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+video_mimetypes = {
+    "3gp": "video/3gpp",
+    "3g2": "video/3gpp2",
+    "avi": "video/x-msvideo",
+    "mpeg": "video/mpeg",
+    "mp4": "video/mp4",
+    "ogv": "video/ogg",
+    "ts": "video/mp2t",
+    "webm": "video/webm",
+}
 
 
 @app.before_request
@@ -30,9 +41,9 @@ def main() -> tuple:
 
     elif request.method == "POST":
         url = get_id_from_url(request.form["video_url"])
-        if request.form["result_select"] == "video":
+        if request.form["result_select"] == "video_small":
             return download_video(url)
-        elif request.form["result_select"] == "gif":
+        elif request.form["result_select"] == "gif_small":
             return download_gif(url)
 
 
@@ -58,6 +69,7 @@ def test():
     # Test video
     return download_video('BaW_jenozKc')
 
+
 @app.get("/robots.txt")
 def robots():
     """
@@ -82,36 +94,44 @@ def get_id_from_url(video_url: str) -> str:
 def download_video(video_id: str):
     # Download video
     # The request below is equivalent to:
-    #   yt-dlp -f "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / best" "https://www.youtube.com/watch?v={video_id}"
+    #   yt-dlp -f "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / worstvideo*+worstaudio* / worst" "https://www.youtube.com/watch?v={video_id}"
     # which will find the best video and audio combination that is preferably less than 25MB (with multiple fallbacks)
     url = f'https://www.youtube.com/watch?v={video_id}'
     parameters = {
         # "postprocessors": [{"key": "EmbedThumbnail"}],
-        "format": "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / best"
+        "format": "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / worstvideo*+worstaudio* / worst",
+        "outtmpl": "%(title|Untitled)s - %(uploader|Unknown)s [%(id)s].%(ext)s",
     }
     with YoutubeDL(params=parameters) as ydl:
         info = ydl.extract_info(url)
 
     # Locate downloaded file
     video = info['requested_downloads'][0]['filepath']
-    print("video:", video)
+    print("file:", video)
 
-    # TODO overcome Cloud Run 32MB limit: https://cloud.google.com/run/quotas
+    # Send file obj instead of sending path to overcome Cloud Run 32MB limit (https://cloud.google.com/run/quotas)
     # as_attachment indicates to the browser to download instead of displaying
-    return send_file(video, as_attachment=True)
+    return send_file(
+        open(video, 'rb'),
+        as_attachment=True,
+        mimetype=video_mimetypes.get(video.split('.')[-1], "video/mp4"),
+        download_name=os.path.split(video)[1]
+    )
 
 
 def download_gif(video_id: str):
     # Download video
     # The request below is equivalent to:
-    #   yt-dlp -f "bv[filesize<=512K] / wv" --ppa "VideoConvertor:-r 8" --recode gif "https://www.youtube.com/watch?v={video_id}"
+    #   yt-dlp -f "bv[filesize<=512K] / wv" --ppa "VideoConvertor:-r 8 -an" --recode gif "https://www.youtube.com/watch?v={video_id}"
     # which will find the best video (no audio) under 512KB, or the worst video if that isn't available, and recode to gif at 8 fps, ignoring audio
     url = f'https://www.youtube.com/watch?v={video_id}'
     parameters = {
         "format": "bv[filesize<=512K] / wv",
+        # "outtmpl": "%(title|Untitled)s - %(uploader|Unknown)s [%(id)s].%(ext)s",  # Causes issues with recoder
         "postprocessors": [{
             "key": "FFmpegVideoConvertor",
-            "preferedformat": "gif"
+            "preferedformat": "gif",
+            # "when": "post_process"
         }],
         "postprocessor_args": {
             "VideoConvertor": "-r 8 -an",
@@ -122,11 +142,16 @@ def download_gif(video_id: str):
 
     # Locate downloaded file
     gif = info['requested_downloads'][0]['filepath']
-    print("video:", gif)
+    print("file:", gif)
 
-    # TODO overcome Cloud Run 32MB limit: https://cloud.google.com/run/quotas
+    # Send file obj instead of sending path to overcome Cloud Run 32MB limit (https://cloud.google.com/run/quotas)
     # as_attachment indicates to the browser to download instead of displaying
-    return send_file(gif, as_attachment=True)
+    return send_file(
+        open(gif, 'rb'),
+        as_attachment=True,
+        mimetype="image/gif",
+        download_name=os.path.split(gif)[1]
+    )
 
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:
