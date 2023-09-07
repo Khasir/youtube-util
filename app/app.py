@@ -41,8 +41,11 @@ def main() -> tuple:
 
     elif request.method == "POST":
         url = get_id_from_url(request.form["video_url"])
-        if request.form["result_select"] == "video_small":
-            return download_video(url)
+        if request.form["result_select"].startswith("video"):
+            return download_video(
+                url,
+                True if request.form["result_select"] == "video_large" else False
+            )
         elif request.form["result_select"] == "gif_small":
             return download_gif(url)
 
@@ -81,17 +84,17 @@ def robots():
 def get_id_from_url(video_url: str) -> str:
     result = None
     if "/watch" in video_url:
-        result = re.search(r"(?<=v=).+?(?=\b)", video_url)
+        result = re.search(r"(?<=v=).+?(?=(&|\Z))", video_url)
     elif "/shorts" in video_url:
-        result = re.search(r"(?<=/shorts/).+?(?=\b)", video_url)
+        result = re.search(r"(?<=/shorts/).+?(?=(&|\Z))", video_url)
     elif "youtu.be/" in video_url:
-        result = re.search(r"(?<=youtu\.be/).+?(?=\b)", video_url)
+        result = re.search(r"(?<=youtu\.be/).+?(?=(&|\Z))", video_url)
     if result:
         return result[0]
     return f"Invalid URL: {video_url}", 400
 
 
-def download_video(video_id: str):
+def download_video(video_id: str, best=False):
     # Download video
     # The request below is equivalent to:
     #   yt-dlp -f "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / worstvideo*+worstaudio* / worst" "https://www.youtube.com/watch?v={video_id}"
@@ -102,6 +105,8 @@ def download_video(video_id: str):
         "format": "bestvideo*[ext=mp4][filesize<=20M]+bestaudio[ext=m4a][filesize<=4M] / bestvideo*[filesize<=19M]+bestaudio[filesize<=4M] / best[filesize<=25M] / worstvideo*+worstaudio* / worst",
         "outtmpl": "%(title|Untitled)s - %(uploader|Unknown)s [%(id)s].%(ext)s",
     }
+    if best:
+        del parameters["format"]  # default = "bv+ba / best"
     with YoutubeDL(params=parameters) as ydl:
         info = ydl.extract_info(url)
 

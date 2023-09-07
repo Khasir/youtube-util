@@ -12,10 +12,11 @@
 </head>
 
 <body>
-    <h1>YouTube Mini Downloader</h1>
-    <i>Work in progress!</i>
-    <br />
+    <b>YouTube Mini Downloader</b>
+    <i>Work in progress!</i><br /><br />
 
+    Use this app to download videos and gifs for Discord!<br />
+    Note that 10 mins of video ≈ 50MB of gif.
     <form method="post">
         <label for="video_url">Video URL:</label>
         <input type="url" id="video_url" name="video_url"/>
@@ -23,6 +24,7 @@
         <label for="result_select">Select output:</label>
         <select name="result_select" id="result_select">
             <option value="">[Select an option]</option>
+            <option value="video_large">Video - best quality</option>
             <option value="video_small">Video - small, Discord-optimized</option>
             <option value="gif_small">Gif - small, Discord-optimized</option>
         </select>
