@@ -31,3 +31,5 @@ python -m app
 ```sh
 ./deploy.sh
 ```
+
+TODO: age restricted videos (https://www.youtube.com/watch?v=HFlmHY8QFiY), location restrictions

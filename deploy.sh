@@ -5,5 +5,5 @@ gcloud run deploy youtube-util-p \
     --allow-unauthenticated \
     --cpu-throttling \
     --cpu 1 \
-    --memory 1Gi \
+    --memory 4Gi \
     --source app
